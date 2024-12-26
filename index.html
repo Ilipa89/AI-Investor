@@ -46,21 +46,6 @@
         th.sortable:hover {
             background-color: #e8e8e8;
         }
-        th.sortable:after {
-            content: '';
-            position: absolute;
-            right: 8px;
-            top: 50%;
-            border: 5px solid transparent;
-        }
-        th.sortable.asc:after {
-            border-bottom-color: #1e88e5;
-            margin-top: -7px;
-        }
-        th.sortable.desc:after {
-            border-top-color: #1e88e5;
-            margin-top: -3px;
-        }
         .scrollable {
             overflow-x: auto;
         }
@@ -158,38 +143,39 @@
     </div>
 
     <script>
-        const cryptoData = [
-            {
-                name: 'Bitcoin (BTC)',
-                price: 43800,
-                market_cap: '1,000,000,000,000',
-                volatility: '5.2',
-                percent_change: '3.5',
-                expected_ath: '60000',
-                recommendation: 'Buy',
-                why: 'Strong growth potential',
-            },
-            {
-                name: 'Ethereum (ETH)',
-                price: 3500,
-                market_cap: '400,000,000,000',
-                volatility: '3.8',
-                percent_change: '-2.1',
-                expected_ath: '4000',
-                recommendation: 'Hold',
-                why: 'Stable with minor fluctuations',
-            },
-            {
-                name: 'Sui (SUI)',
-                price: 4.38,
-                market_cap: '35,000,000,000',
-                volatility: '10.1',
-                percent_change: '-7.5',
-                expected_ath: '5.50',
-                recommendation: 'Sell',
-                why: 'Significant downward trend',
+        const API_KEY = '82acae47-4647-4fa7-8f8a-a6436036d618';
+        const BASE_URL = 'https://pro-api.coinmarketcap.com/v1';
+        const PROXY_URL = 'https://cors-anywhere.herokuapp.com/';
+        const FULL_URL = `${PROXY_URL}${BASE_URL}/cryptocurrency/listings/latest?start=1&limit=100&convert=USD`;
+
+        let cryptoData = [];
+
+        async function fetchCryptoData() {
+            try {
+                const response = await fetch(FULL_URL, {
+                    headers: { 'X-CMC_PRO_API_KEY': API_KEY },
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP Error: ${response.status}`);
+                }
+
+                const data = await response.json();
+                cryptoData = data.data.map(coin => ({
+                    name: `${coin.name} (${coin.symbol})`,
+                    price: parseFloat(coin.quote.USD.price).toFixed(2),
+                    market_cap: coin.quote.USD.market_cap.toLocaleString(),
+                    volatility: Math.abs(parseFloat(coin.quote.USD.percent_change_24h)).toFixed(2),
+                    percent_change: parseFloat(coin.quote.USD.percent_change_24h).toFixed(2),
+                    expected_ath: (parseFloat(coin.quote.USD.price) * 1.5).toFixed(2), // Mock logic for expected ATH
+                    recommendation: analyzeCrypto(parseFloat(coin.quote.USD.percent_change_24h)),
+                    why: generateWhyReason(parseFloat(coin.quote.USD.percent_change_24h))
+                }));
+                displayCryptoData(cryptoData);
+            } catch (error) {
+                console.error('Error fetching crypto data:', error);
             }
-        ];
+        }
 
         function displayCryptoData(data) {
             const cryptoList = document.getElementById('crypto-list');
@@ -199,7 +185,7 @@
                 cryptoList.innerHTML += `
                     <tr>
                         <td>${coin.name}</td>
-                        <td>${coin.price.toFixed(2)}</td>
+                        <td>${coin.price}</td>
                         <td>${coin.market_cap}</td>
                         <td>${coin.volatility}%</td>
                         <td>${coin.percent_change}%</td>
@@ -209,6 +195,26 @@
                     </tr>
                 `;
             });
+        }
+
+        function analyzeCrypto(percentChange) {
+            if (percentChange > 5) {
+                return 'Buy';
+            } else if (percentChange < -5) {
+                return 'Sell';
+            } else {
+                return 'Hold';
+            }
+        }
+
+        function generateWhyReason(percentChange) {
+            if (percentChange > 5) {
+                return 'Strong growth potential';
+            } else if (percentChange < -5) {
+                return 'Significant downward trend';
+            } else {
+                return 'Stable with minor fluctuations';
+            }
         }
 
         function showAnalysis(name, price, recommendation) {
@@ -241,7 +247,17 @@
             modal.style.display = 'none';
         }
 
-        displayCryptoData(cryptoData);
+        function filterTable() {
+            const searchInput = document.getElementById('searchCoin').value.toLowerCase();
+            const rows = document.querySelectorAll('#cryptoTable tbody tr');
+
+            rows.forEach(row => {
+                const coinName = row.getElementsByTagName('td')[0].innerText.toLowerCase();
+                row.style.display = coinName.includes(searchInput) ? '' : 'none';
+            });
+        }
+
+        fetchCryptoData();
     </script>
 </body>
 </html>
