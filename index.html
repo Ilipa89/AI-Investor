@@ -35,12 +35,16 @@
         table th {
             background-color: #1e88e5;
             color: white;
+            cursor: pointer;
         }
         table tbody tr:hover {
             background-color: #f1f1f1;
         }
         .scrollable {
             overflow-x: auto;
+        }
+        .highlight {
+            background-color: #d1ffd1;
         }
         .modal {
             display: none;
@@ -89,11 +93,8 @@
                         <th>Symbol</th>
                         <th>Price (USD)</th>
                         <th>Market Cap (USD)</th>
-                        <th>24h Change (%)</th>
-                        <th>Potential ATH</th>
-                        <th>Probability Index (%)</th>
-                        <th>Expected Date</th>
-                        <th>Recommendation</th>
+                        <th>Growth Potential</th>
+                        <th>Risk Level</th>
                     </tr>
                 </thead>
                 <tbody id="cryptoList">
@@ -129,7 +130,15 @@
                 });
                 if (!response.ok) throw new Error(`Error fetching data: ${response.status}`);
                 const data = await response.json();
-                cryptoData = data.data; // Save data globally for analysis
+                cryptoData = data.data.map(coin => ({
+                    rank: coin.cmc_rank,
+                    name: coin.name,
+                    symbol: coin.symbol,
+                    price: coin.quote.USD.price,
+                    marketCap: coin.quote.USD.market_cap,
+                    growthPotential: calculateGrowthPotential(coin.quote.USD.market_cap, coin.quote.USD.price),
+                    riskLevel: calculateRiskLevel(coin.quote.USD.market_cap)
+                }));
                 displayCryptoData(cryptoData);
             } catch (error) {
                 console.error(error);
@@ -137,74 +146,39 @@
             }
         }
 
-        function calculatePotentialATH(price) {
-            return (price * 1.5).toFixed(2); // Mock calculation: 50% above current price
+        function calculateGrowthPotential(marketCap, price) {
+            if (marketCap < 500e6) {
+                return `${(price * 20).toFixed(2)} (2000%)`;
+            } else if (marketCap < 1e9) {
+                return `${(price * 10).toFixed(2)} (1000%)`;
+            } else {
+                return `${(price * 3).toFixed(2)} (300%)`;
+            }
         }
 
-        function calculateProbabilityIndex(price, ath) {
-            return (Math.random() * 50 + 50).toFixed(2); // Mock random percentage between 50%-100%
-        }
-
-        function calculateExpectedDate() {
-            const futureDate = new Date();
-            futureDate.setMonth(futureDate.getMonth() + Math.floor(Math.random() * 12) + 1); // Random 1-12 months ahead
-            return futureDate.toISOString().split('T')[0]; // Return date in YYYY-MM-DD format
+        function calculateRiskLevel(marketCap) {
+            if (marketCap < 100e6) return 'High';
+            if (marketCap < 500e6) return 'Moderate';
+            return 'Low';
         }
 
         function displayCryptoData(data) {
             const cryptoList = document.getElementById('cryptoList');
             cryptoList.innerHTML = '';
-            data.forEach((coin, index) => {
-                const price = coin.quote.USD.price;
-                const potentialATH = calculatePotentialATH(price);
-                const probabilityIndex = calculateProbabilityIndex(price, potentialATH);
-                const expectedDate = calculateExpectedDate();
-                const recommendation = generateRecommendation(coin.quote.USD.percent_change_24h);
+            data.forEach(coin => {
                 const row = `
-                    <tr onclick="showAnalysis(${index})">
-                        <td>${coin.cmc_rank}</td>
+                    <tr class="${coin.growthPotential.includes('2000%') ? 'highlight' : ''}">
+                        <td>${coin.rank}</td>
                         <td>${coin.name}</td>
                         <td>${coin.symbol}</td>
-                        <td>$${price.toFixed(2)}</td>
-                        <td>$${(coin.quote.USD.market_cap / 1e9).toFixed(2)} B</td>
-                        <td>${coin.quote.USD.percent_change_24h.toFixed(2)}%</td>
-                        <td>$${potentialATH}</td>
-                        <td>${probabilityIndex}%</td>
-                        <td>${expectedDate}</td>
-                        <td class="${recommendation.toLowerCase()}">${recommendation}</td>
+                        <td>$${coin.price.toFixed(2)}</td>
+                        <td>$${(coin.marketCap / 1e9).toFixed(2)} B</td>
+                        <td>${coin.growthPotential}</td>
+                        <td>${coin.riskLevel}</td>
                     </tr>
                 `;
                 cryptoList.innerHTML += row;
             });
-        }
-
-        function generateRecommendation(percentChange) {
-            if (percentChange > 5) return 'Buy';
-            if (percentChange < -5) return 'Sell';
-            return 'Hold';
-        }
-
-        function showAnalysis(index) {
-            const coin = cryptoData[index];
-            if (!coin) {
-                ANALYSIS_CONTENT.innerHTML = `<p>Error loading analysis data. Please try again.</p>`;
-                return;
-            }
-            const price = coin.quote.USD.price;
-            const potentialATH = calculatePotentialATH(price);
-            const probabilityIndex = calculateProbabilityIndex(price, potentialATH);
-            const expectedDate = calculateExpectedDate();
-            ANALYSIS_CONTENT.innerHTML = `
-                <p><strong>Coin:</strong> ${coin.name} (${coin.symbol})</p>
-                <p><strong>Price:</strong> $${price.toFixed(2)}</p>
-                <p><strong>Market Cap:</strong> $${(coin.quote.USD.market_cap / 1e9).toFixed(2)} B</p>
-                <p><strong>24h Change:</strong> ${coin.quote.USD.percent_change_24h.toFixed(2)}%</p>
-                <p><strong>Potential ATH:</strong> $${potentialATH}</p>
-                <p><strong>Probability Index:</strong> ${probabilityIndex}%</p>
-                <p><strong>Expected Date:</strong> ${expectedDate}</p>
-                <p><strong>Recommendation:</strong> ${generateRecommendation(coin.quote.USD.percent_change_24h)}</p>
-            `;
-            MODAL.style.display = 'block';
         }
 
         function closeModal() {
