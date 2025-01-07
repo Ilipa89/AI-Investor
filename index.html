@@ -115,6 +115,7 @@
         const API_URL = 'https://pro-api.coinmarketcap.com/v1/cryptocurrency/listings/latest?limit=500';
         const MODAL = document.getElementById('analysisModal');
         const ANALYSIS_CONTENT = document.getElementById('analysisContent');
+        let cryptoData = []; // Store all crypto data globally
 
         async function fetchCryptoData() {
             try {
@@ -124,35 +125,63 @@
                 });
                 if (!response.ok) throw new Error(`Error fetching data: ${response.status}`);
                 const data = await response.json();
-                displayCryptoData(data.data);
+                cryptoData = data.data; // Save data globally for analysis
+                displayCryptoData(cryptoData);
             } catch (error) {
                 console.error(error);
                 alert('Failed to fetch cryptocurrency data.');
             }
         }
 
-        function displayCryptoData(cryptoData) {
+        function displayCryptoData(data) {
             const cryptoList = document.getElementById('cryptoList');
             cryptoList.innerHTML = '';
-            cryptoData.forEach((coin, index) => {
+            data.forEach((coin, index) => {
                 const recommendation = generateRecommendation(coin.quote.USD.percent_change_24h);
                 const row = `
                     <tr onclick="showAnalysis(${index})">
                         <td>${coin.cmc_rank}</td>
                         <td>${coin.name}</td>
                         <td>${coin.symbol}</td>
-                        <td>${coin.quote.USD.price.toFixed(2)}</td>
-                        <td>${(coin.quote.USD.market_cap / 1e9).toFixed(2)} B</td>
-                        <td>${coin.quote.USD.percent_change_24h.toFixed(2)}</td>
+                        <td>$${coin.quote.USD.price.toFixed(2)}</td>
+                        <td>$${(coin.quote.USD.market_cap / 1e9).toFixed(2)} B</td>
+                        <td>${coin.quote.USD.percent_change_24h.toFixed(2)}%</td>
                         <td class="${recommendation.toLowerCase()}">${recommendation}</td>
                     </tr>
                 `;
                 cryptoList.innerHTML += row;
             });
-
-            window.cryptoData = cryptoData; // Store data globally for modal use
         }
 
         function generateRecommendation(percentChange) {
             if (percentChange > 5) return 'Buy';
-            if (percentChange
+            if (percentChange < -5) return 'Sell';
+            return 'Hold';
+        }
+
+        function showAnalysis(index) {
+            const coin = cryptoData[index];
+            if (!coin) {
+                ANALYSIS_CONTENT.innerHTML = `<p>Error loading analysis data. Please try again.</p>`;
+                return;
+            }
+            ANALYSIS_CONTENT.innerHTML = `
+                <p><strong>Coin:</strong> ${coin.name} (${coin.symbol})</p>
+                <p><strong>Price:</strong> $${coin.quote.USD.price.toFixed(2)}</p>
+                <p><strong>Market Cap:</strong> $${(coin.quote.USD.market_cap / 1e9).toFixed(2)} B</p>
+                <p><strong>24h Change:</strong> ${coin.quote.USD.percent_change_24h.toFixed(2)}%</p>
+                <p><strong>Recommendation:</strong> ${generateRecommendation(coin.quote.USD.percent_change_24h)}</p>
+                <p><strong>Additional Insights:</strong> Detailed volatility and historical trend data can be added here...</p>
+            `;
+            MODAL.style.display = 'block';
+        }
+
+        function closeModal() {
+            MODAL.style.display = 'none';
+        }
+
+        // Fetch data on page load
+        fetchCryptoData();
+    </script>
+</body>
+</html>
