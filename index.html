@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Crypto Market Analysis</title>
+    <title>Crypto Market Analysis Tool</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -19,15 +19,8 @@
         }
         .container {
             padding: 2rem;
-            max-width: 1000px;
+            max-width: 1200px;
             margin: auto;
-        }
-        .card {
-            background: white;
-            padding: 1.5rem;
-            border-radius: 8px;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-            margin-bottom: 1rem;
         }
         table {
             width: 100%;
@@ -39,37 +32,15 @@
             padding: 0.5rem;
             border: 1px solid #ddd;
         }
-        th.sortable {
-            cursor: pointer;
-            position: relative;
+        table th {
+            background-color: #1e88e5;
+            color: white;
         }
-        th.sortable:hover {
-            background-color: #e8e8e8;
+        table tbody tr:hover {
+            background-color: #f1f1f1;
         }
         .scrollable {
             overflow-x: auto;
-        }
-        input[type="text"] {
-            padding: 0.5rem;
-            width: 100%;
-            margin-bottom: 1rem;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-        }
-        .buy {
-            color: green;
-            font-weight: bold;
-            cursor: pointer;
-        }
-        .sell {
-            color: red;
-            font-weight: bold;
-            cursor: pointer;
-        }
-        .hold {
-            color: orange;
-            font-weight: bold;
-            cursor: pointer;
         }
         .modal {
             display: none;
@@ -100,33 +71,30 @@
         }
         .close:hover {
             color: black;
-            text-decoration: none;
         }
     </style>
 </head>
 <body>
     <header>
-        <h1>Crypto Market Analysis</h1>
+        <h1>Crypto Market Analysis Tool</h1>
     </header>
     <div class="container">
-        <input type="text" id="searchCoin" placeholder="Search for a coin..." onkeyup="filterTable()">
-        <div class="card scrollable">
-            <h2>Top Cryptocurrencies</h2>
+        <h2>Top 500 Cryptocurrencies</h2>
+        <div class="scrollable">
             <table id="cryptoTable">
                 <thead>
                     <tr>
-                        <th class="sortable" data-column="name">Coin</th>
-                        <th class="sortable" data-column="price">Price ($)</th>
-                        <th class="sortable" data-column="market_cap">Market Cap</th>
-                        <th class="sortable" data-column="volatility">Volatility</th>
-                        <th class="sortable" data-column="percent_change">24h Change</th>
-                        <th class="sortable" data-column="expected_ath">Expected ATH</th>
-                        <th class="sortable" data-column="recommendation">Recommendation</th>
-                        <th>Why</th>
+                        <th>Rank</th>
+                        <th>Coin</th>
+                        <th>Symbol</th>
+                        <th>Price (USD)</th>
+                        <th>Market Cap (USD)</th>
+                        <th>24h Change (%)</th>
+                        <th>Recommendation</th>
                     </tr>
                 </thead>
-                <tbody id="crypto-list">
-                    <!-- Crypto data will be dynamically generated -->
+                <tbody id="cryptoList">
+                    <!-- Data will be dynamically inserted here -->
                 </tbody>
             </table>
         </div>
@@ -135,129 +103,56 @@
     <div id="analysisModal" class="modal">
         <div class="modal-content">
             <span class="close" onclick="closeModal()">&times;</span>
-            <h3>Analysis Table</h3>
+            <h3>Detailed Analysis</h3>
             <div id="analysisContent">
-                <!-- Analysis details will be dynamically populated -->
+                <!-- Detailed analysis content will be dynamically inserted here -->
             </div>
         </div>
     </div>
 
     <script>
-        const API_KEY = '82acae47-4647-4fa7-8f8a-a6436036d618';
-        const BASE_URL = 'https://pro-api.coinmarketcap.com/v1';
-        const PROXY_URL = 'https://cors-anywhere.herokuapp.com/';
-        const FULL_URL = `${PROXY_URL}${BASE_URL}/cryptocurrency/listings/latest?start=1&limit=100&convert=USD`;
-
-        let cryptoData = [];
+        const API_KEY = '82acae47-4647-4fa7-8f8a-a6436036d618'; // Replace with your CoinMarketCap API Key
+        const API_URL = 'https://pro-api.coinmarketcap.com/v1/cryptocurrency/listings/latest?limit=500';
+        const MODAL = document.getElementById('analysisModal');
+        const ANALYSIS_CONTENT = document.getElementById('analysisContent');
 
         async function fetchCryptoData() {
             try {
-                const response = await fetch(FULL_URL, {
-                    headers: { 'X-CMC_PRO_API_KEY': API_KEY },
+                const response = await fetch(API_URL, {
+                    method: 'GET',
+                    headers: { 'X-CMC_PRO_API_KEY': API_KEY }
                 });
-
-                if (!response.ok) {
-                    throw new Error(`HTTP Error: ${response.status}`);
-                }
-
+                if (!response.ok) throw new Error(`Error fetching data: ${response.status}`);
                 const data = await response.json();
-                cryptoData = data.data.map(coin => ({
-                    name: `${coin.name} (${coin.symbol})`,
-                    price: parseFloat(coin.quote.USD.price).toFixed(2),
-                    market_cap: coin.quote.USD.market_cap.toLocaleString(),
-                    volatility: Math.abs(parseFloat(coin.quote.USD.percent_change_24h)).toFixed(2),
-                    percent_change: parseFloat(coin.quote.USD.percent_change_24h).toFixed(2),
-                    expected_ath: (parseFloat(coin.quote.USD.price) * 1.5).toFixed(2), // Mock logic for expected ATH
-                    recommendation: analyzeCrypto(parseFloat(coin.quote.USD.percent_change_24h)),
-                    why: generateWhyReason(parseFloat(coin.quote.USD.percent_change_24h))
-                }));
-                displayCryptoData(cryptoData);
+                displayCryptoData(data.data);
             } catch (error) {
-                console.error('Error fetching crypto data:', error);
+                console.error(error);
+                alert('Failed to fetch cryptocurrency data.');
             }
         }
 
-        function displayCryptoData(data) {
-            const cryptoList = document.getElementById('crypto-list');
+        function displayCryptoData(cryptoData) {
+            const cryptoList = document.getElementById('cryptoList');
             cryptoList.innerHTML = '';
-
-            data.forEach(coin => {
-                cryptoList.innerHTML += `
-                    <tr>
+            cryptoData.forEach((coin, index) => {
+                const recommendation = generateRecommendation(coin.quote.USD.percent_change_24h);
+                const row = `
+                    <tr onclick="showAnalysis(${index})">
+                        <td>${coin.cmc_rank}</td>
                         <td>${coin.name}</td>
-                        <td>${coin.price}</td>
-                        <td>${coin.market_cap}</td>
-                        <td>${coin.volatility}%</td>
-                        <td>${coin.percent_change}%</td>
-                        <td>${coin.expected_ath}</td>
-                        <td class="${coin.recommendation.toLowerCase()}" onclick="showAnalysis('${coin.name}', ${coin.price}, '${coin.recommendation}')">${coin.recommendation}</td>
-                        <td>${coin.why}</td>
+                        <td>${coin.symbol}</td>
+                        <td>${coin.quote.USD.price.toFixed(2)}</td>
+                        <td>${(coin.quote.USD.market_cap / 1e9).toFixed(2)} B</td>
+                        <td>${coin.quote.USD.percent_change_24h.toFixed(2)}</td>
+                        <td class="${recommendation.toLowerCase()}">${recommendation}</td>
                     </tr>
                 `;
+                cryptoList.innerHTML += row;
             });
+
+            window.cryptoData = cryptoData; // Store data globally for modal use
         }
 
-        function analyzeCrypto(percentChange) {
-            if (percentChange > 5) {
-                return 'Buy';
-            } else if (percentChange < -5) {
-                return 'Sell';
-            } else {
-                return 'Hold';
-            }
-        }
-
-        function generateWhyReason(percentChange) {
-            if (percentChange > 5) {
-                return 'Strong growth potential';
-            } else if (percentChange < -5) {
-                return 'Significant downward trend';
-            } else {
-                return 'Stable with minor fluctuations';
-            }
-        }
-
-        function showAnalysis(name, price, recommendation) {
-            const modal = document.getElementById('analysisModal');
-            const analysisContent = document.getElementById('analysisContent');
-
-            let expectedDropPrice = (price * 0.9).toFixed(2); // Mock logic: assume a 10% drop for sell
-            let expectedDropPercentage = 10; // Mock logic: 10%
-
-            if (recommendation === 'Buy') {
-                expectedDropPrice = (price * 1.1).toFixed(2); // Mock logic: assume a 10% rise for buy
-                expectedDropPercentage = -10; // Indicate growth
-            } else if (recommendation === 'Hold') {
-                expectedDropPrice = price.toFixed(2); // No change
-                expectedDropPercentage = 0;
-            }
-
-            analysisContent.innerHTML = `
-                <p><strong>Coin:</strong> ${name}</p>
-                <p><strong>Recommendation:</strong> ${recommendation}</p>
-                <p><strong>Expected Drop Price:</strong> $${expectedDropPrice}</p>
-                <p><strong>Expected Drop Percentage:</strong> ${expectedDropPercentage}%</p>
-            `;
-
-            modal.style.display = 'block';
-        }
-
-        function closeModal() {
-            const modal = document.getElementById('analysisModal');
-            modal.style.display = 'none';
-        }
-
-        function filterTable() {
-            const searchInput = document.getElementById('searchCoin').value.toLowerCase();
-            const rows = document.querySelectorAll('#cryptoTable tbody tr');
-
-            rows.forEach(row => {
-                const coinName = row.getElementsByTagName('td')[0].innerText.toLowerCase();
-                row.style.display = coinName.includes(searchInput) ? '' : 'none';
-            });
-        }
-
-        fetchCryptoData();
-    </script>
-</body>
-</html>
+        function generateRecommendation(percentChange) {
+            if (percentChange > 5) return 'Buy';
+            if (percentChange
