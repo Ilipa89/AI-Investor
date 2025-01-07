@@ -36,20 +36,6 @@
             background-color: #1e88e5;
             color: white;
             cursor: pointer;
-            position: relative;
-        }
-        table th::after {
-            content: "▲▼";
-            font-size: 0.8rem;
-            position: absolute;
-            right: 8px;
-            top: 12px;
-        }
-        table th.sort-asc::after {
-            content: "▲";
-        }
-        table th.sort-desc::after {
-            content: "▼";
         }
         table tbody tr:hover {
             background-color: #f1f1f1;
@@ -59,36 +45,6 @@
         }
         .highlight {
             background-color: #d1ffd1;
-        }
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 10;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            overflow: auto;
-            background-color: rgba(0, 0, 0, 0.5);
-            padding-top: 50px;
-        }
-        .modal-content {
-            background-color: white;
-            margin: auto;
-            padding: 20px;
-            border: 1px solid #888;
-            width: 80%;
-            border-radius: 8px;
-        }
-        .close {
-            color: #aaa;
-            float: right;
-            font-size: 28px;
-            font-weight: bold;
-            cursor: pointer;
-        }
-        .close:hover {
-            color: black;
         }
     </style>
 </head>
@@ -102,15 +58,15 @@
             <table id="cryptoTable">
                 <thead>
                     <tr>
-                        <th data-column="rank" class="sortable">Rank</th>
-                        <th data-column="name" class="sortable">Coin</th>
-                        <th data-column="symbol" class="sortable">Symbol</th>
-                        <th data-column="price" class="sortable">Price (USD)</th>
-                        <th data-column="marketCap" class="sortable">Market Cap (USD)</th>
-                        <th data-column="growthPotential" class="sortable">Growth Potential</th>
-                        <th data-column="probabilityIndex" class="sortable">Probability Index (%)</th>
-                        <th data-column="expectedDate" class="sortable">Expected Date</th>
-                        <th data-column="recommendation" class="sortable">Recommendation</th>
+                        <th>Rank</th>
+                        <th>Coin</th>
+                        <th>Symbol</th>
+                        <th>Price (USD)</th>
+                        <th>Market Cap (USD)</th>
+                        <th>Growth Potential</th>
+                        <th>Probability Index (%)</th>
+                        <th>Expected Date</th>
+                        <th>Recommendation</th>
                     </tr>
                 </thead>
                 <tbody id="cryptoList">
@@ -120,59 +76,55 @@
         </div>
     </div>
 
-    <div id="analysisModal" class="modal">
-        <div class="modal-content">
-            <span class="close" onclick="closeModal()">&times;</span>
-            <h3>Detailed Analysis</h3>
-            <div id="analysisContent">
-                <!-- Detailed analysis content will be dynamically inserted here -->
-            </div>
-        </div>
-    </div>
-
     <script>
         const API_KEY = '82acae47-4647-4fa7-8f8a-a6436036d618'; // Replace with your CoinMarketCap API Key
         const CORS_PROXY = 'https://cors-anywhere.herokuapp.com/';
-        const API_URL = `${CORS_PROXY}https://pro-api.coinmarketcap.com/v1/cryptocurrency/listings/latest?limit=500`;
-        const MODAL = document.getElementById('analysisModal');
-        const ANALYSIS_CONTENT = document.getElementById('analysisContent');
-        let cryptoData = []; // Store all crypto data globally
-        let sortOrder = {}; // Store current sort order for each column
+        const API_URL = `https://pro-api.coinmarketcap.com/v1/cryptocurrency/listings/latest?limit=500`;
 
         async function fetchCryptoData() {
             try {
-                const response = await fetch(API_URL, {
+                const response = await fetch(`${CORS_PROXY}${API_URL}`, {
                     method: 'GET',
-                    headers: { 'X-CMC_PRO_API_KEY': API_KEY }
+                    headers: {
+                        'X-CMC_PRO_API_KEY': API_KEY,
+                        'Origin': window.location.origin,
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
                 });
                 if (!response.ok) throw new Error(`Error fetching data: ${response.status}`);
                 const data = await response.json();
-                cryptoData = data.data.map(coin => ({
-                    rank: coin.cmc_rank,
-                    name: coin.name,
-                    symbol: coin.symbol,
-                    price: coin.quote.USD.price.toFixed(2),
-                    marketCap: (coin.quote.USD.market_cap / 1e9).toFixed(2),
-                    growthPotential: calculateGrowthPotential(coin.quote.USD.market_cap, coin.quote.USD.price),
-                    probabilityIndex: calculateProbabilityIndex(),
-                    expectedDate: calculateExpectedDate(),
-                    recommendation: generateRecommendation(coin.quote.USD.percent_change_24h)
-                }));
-                displayCryptoData(cryptoData);
+                displayCryptoData(data.data);
             } catch (error) {
                 console.error(error);
                 alert('Failed to fetch cryptocurrency data. Ensure the CORS proxy is active.');
             }
         }
 
+        function displayCryptoData(data) {
+            const cryptoList = document.getElementById('cryptoList');
+            cryptoList.innerHTML = '';
+            data.forEach(coin => {
+                const row = `
+                    <tr>
+                        <td>${coin.cmc_rank}</td>
+                        <td>${coin.name}</td>
+                        <td>${coin.symbol}</td>
+                        <td>$${coin.quote.USD.price.toFixed(2)}</td>
+                        <td>$${(coin.quote.USD.market_cap / 1e9).toFixed(2)} B</td>
+                        <td>${calculateGrowthPotential(coin.quote.USD.market_cap, coin.quote.USD.price)}</td>
+                        <td>${calculateProbabilityIndex()}%</td>
+                        <td>${calculateExpectedDate()}</td>
+                        <td>${generateRecommendation(coin.quote.USD.percent_change_24h)}</td>
+                    </tr>
+                `;
+                cryptoList.innerHTML += row;
+            });
+        }
+
         function calculateGrowthPotential(marketCap, price) {
-            if (marketCap < 500e6) {
-                return `${(price * 20).toFixed(2)} (2000%)`;
-            } else if (marketCap < 1e9) {
-                return `${(price * 10).toFixed(2)} (1000%)`;
-            } else {
-                return `${(price * 3).toFixed(2)} (300%)`;
-            }
+            if (marketCap < 500e6) return `${(price * 20).toFixed(2)} (2000%)`;
+            if (marketCap < 1e9) return `${(price * 10).toFixed(2)} (1000%)`;
+            return `${(price * 3).toFixed(2)} (300%)`;
         }
 
         function calculateProbabilityIndex() {
@@ -185,57 +137,11 @@
             return futureDate.toISOString().split('T')[0]; // Return date in YYYY-MM-DD format
         }
 
-        function displayCryptoData(data) {
-            const cryptoList = document.getElementById('cryptoList');
-            cryptoList.innerHTML = '';
-            data.forEach(coin => {
-                const row = `
-                    <tr>
-                        <td>${coin.rank}</td>
-                        <td>${coin.name}</td>
-                        <td>${coin.symbol}</td>
-                        <td>$${coin.price}</td>
-                        <td>$${coin.marketCap} B</td>
-                        <td>${coin.growthPotential}</td>
-                        <td>${coin.probabilityIndex}%</td>
-                        <td>${coin.expectedDate}</td>
-                        <td>${coin.recommendation}</td>
-                    </tr>
-                `;
-                cryptoList.innerHTML += row;
-            });
+        function generateRecommendation(percentChange) {
+            if (percentChange > 5) return 'Buy';
+            if (percentChange < -5) return 'Sell';
+            return 'Hold';
         }
-
-        function sortTable(column) {
-            const sortDirection = sortOrder[column] === 'asc' ? 'desc' : 'asc';
-            sortOrder[column] = sortDirection;
-
-            cryptoData.sort((a, b) => {
-                if (column === 'expectedDate') {
-                    const dateA = new Date(a[column]);
-                    const dateB = new Date(b[column]);
-                    return sortDirection === 'asc' ? dateA - dateB : dateB - dateA;
-                } else if (column === 'name' || column === 'symbol' || column === 'recommendation') {
-                    return sortDirection === 'asc'
-                        ? a[column].localeCompare(b[column])
-                        : b[column].localeCompare(a[column]);
-                } else {
-                    return sortDirection === 'asc'
-                        ? a[column] - b[column]
-                        : b[column] - a[column];
-                }
-            });
-
-            // Update table and column header class
-            document.querySelectorAll('.sortable').forEach(th => th.classList.remove('sort-asc', 'sort-desc'));
-            document.querySelector(`[data-column="${column}"]`).classList.add(`sort-${sortDirection}`);
-
-            displayCryptoData(cryptoData);
-        }
-
-        document.querySelectorAll('.sortable').forEach(th => {
-            th.addEventListener('click', () => sortTable(th.dataset.column));
-        });
 
         fetchCryptoData();
     </script>
