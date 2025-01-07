@@ -112,7 +112,8 @@
 
     <script>
         const API_KEY = '82acae47-4647-4fa7-8f8a-a6436036d618'; // Replace with your CoinMarketCap API Key
-        const API_URL = 'https://pro-api.coinmarketcap.com/v1/cryptocurrency/listings/latest?limit=500';
+        const CORS_PROXY = 'https://cors-anywhere.herokuapp.com/';
+        const API_URL = `${CORS_PROXY}https://pro-api.coinmarketcap.com/v1/cryptocurrency/listings/latest?limit=500`;
         const MODAL = document.getElementById('analysisModal');
         const ANALYSIS_CONTENT = document.getElementById('analysisContent');
         let cryptoData = []; // Store all crypto data globally
@@ -129,7 +130,7 @@
                 displayCryptoData(cryptoData);
             } catch (error) {
                 console.error(error);
-                alert('Failed to fetch cryptocurrency data.');
+                alert('Failed to fetch cryptocurrency data. Ensure the CORS proxy is active.');
             }
         }
 
