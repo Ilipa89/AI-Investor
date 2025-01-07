@@ -43,9 +43,6 @@
         .scrollable {
             overflow-x: auto;
         }
-        .highlight {
-            background-color: #d1ffd1;
-        }
     </style>
 </head>
 <body>
@@ -78,17 +75,15 @@
 
     <script>
         const API_KEY = '82acae47-4647-4fa7-8f8a-a6436036d618'; // Replace with your CoinMarketCap API Key
-        const CORS_PROXY = 'https://cors-anywhere.herokuapp.com/';
-        const API_URL = `https://pro-api.coinmarketcap.com/v1/cryptocurrency/listings/latest?limit=500`;
+        const CORS_PROXY = 'https://corsproxy.io/';
+        const API_URL = `${CORS_PROXY}https://pro-api.coinmarketcap.com/v1/cryptocurrency/listings/latest?limit=500`;
 
         async function fetchCryptoData() {
             try {
-                const response = await fetch(`${CORS_PROXY}${API_URL}`, {
+                const response = await fetch(API_URL, {
                     method: 'GET',
                     headers: {
-                        'X-CMC_PRO_API_KEY': API_KEY,
-                        'Origin': window.location.origin,
-                        'X-Requested-With': 'XMLHttpRequest'
+                        'X-CMC_PRO_API_KEY': API_KEY
                     }
                 });
                 if (!response.ok) throw new Error(`Error fetching data: ${response.status}`);
@@ -96,7 +91,7 @@
                 displayCryptoData(data.data);
             } catch (error) {
                 console.error(error);
-                alert('Failed to fetch cryptocurrency data. Ensure the CORS proxy is active.');
+                alert('Failed to fetch cryptocurrency data. Please check your API key or proxy service.');
             }
         }
 
